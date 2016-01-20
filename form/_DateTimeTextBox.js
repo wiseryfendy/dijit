@@ -38,6 +38,9 @@ define([
 		constraints: {},
 		======*/
 
+		// The constraints without the min/max properties. Used by the compare() method
+		_unboundedConstraints: {},
+
 		// Override ValidationTextBox.pattern.... we use a reg-ex generating function rather
 		// than a straight regexp to deal with locale  (plus formatting options too?)
 		pattern: locale.regexp,
@@ -59,7 +62,17 @@ define([
 		compare: function(/*Date*/ val1, /*Date*/ val2){
 			var isInvalid1 = this._isInvalidDate(val1);
 			var isInvalid2 = this._isInvalidDate(val2);
-			return isInvalid1 ? (isInvalid2 ? 0 : -1) : (isInvalid2 ? 1 : date.compare(val1, val2, this._selector));
+			if (isInvalid1 || isInvalid2){
+				return (isInvalid1 && isInvalid2) ? 0 : (!isInvalid1 ? 1 : -1);
+			}
+			// Format and parse the values before comparing them to make sure that only the parts of the
+			// date that will make the "round trip" get compared.
+			var fval1 = this.format(val1, this._unboundedConstraints),
+				fval2 = this.format(val2, this._unboundedConstraints),
+				pval1 = this.parse(fval1, this._unboundedConstraints),
+				pval2 = this.parse(fval2, this._unboundedConstraints);
+
+			return fval1 == fval2 ? 0 : date.compare(pval1, pval2, this._selector);
 		},
 
 		// flag to _HasDropDown to make drop down Calendar width == <input> width
@@ -124,8 +137,12 @@ define([
 			// srcNodeRef: DOMNode|String?
 			//		If a srcNodeRef (DOM node) is specified, replace srcNodeRef with my generated DOM tree
 
+			params = params || {};
 			this.dateModule = params.datePackage ? lang.getObject(params.datePackage, false) : date;
 			this.dateClassObj = this.dateModule.Date || Date;
+			if(!(this.dateClassObj instanceof Date)){
+				this.value = new this.dateClassObj(this.value);
+			}
 			this.dateLocaleModule = params.datePackage ? lang.getObject(params.datePackage+".locale", false) : locale;
 			this._set('pattern', this.dateLocaleModule.regexp);
 			this._invalidDate = this.constructor.prototype.value.toString();
@@ -150,9 +167,20 @@ define([
 			constraints.selector = this._selector;
 			constraints.fullYear = true; // see #5465 - always format with 4-digit years
 			var fromISO = stamp.fromISOString;
-			if(typeof constraints.min == "string"){ constraints.min = fromISO(constraints.min); }
-			if(typeof constraints.max == "string"){ constraints.max = fromISO(constraints.max); }
+			if(typeof constraints.min == "string"){
+				constraints.min = fromISO(constraints.min);
+				if(!(this.dateClassObj instanceof Date)){
+					constraints.min = new this.dateClassObj(constraints.min);
+				}
+			}
+			if(typeof constraints.max == "string"){
+				constraints.max = fromISO(constraints.max);
+				if(!(this.dateClassObj instanceof Date)){
+					constraints.max = new this.dateClassObj(constraints.max);
+				}
+			}
 			this.inherited(arguments);
+			this._unboundedConstraints = lang.mixin({}, this.constraints, {min: null, max: null});
 		},
 
 		_isInvalidDate: function(/*Date*/ value){
@@ -177,20 +205,28 @@ define([
 					value = new this.dateClassObj(value);
 				}
 			}
-			this.inherited(arguments);
+			this.inherited(arguments, [value, priorityChange, formattedValue]);
 			if(this.value instanceof Date){
 				this.filterString = "";
 			}
-			if(this.dropDown){
+
+			// Set the dropdown's value to match, unless we are being updated due to the user navigating the TimeTextBox
+			// dropdown via up/down arrow keys.
+			if(priorityChange !== false && this.dropDown){
 				this.dropDown.set('value', value, false);
 			}
 		},
 
 		_set: function(attr, value){
 			// Avoid spurious watch() notifications when value is changed to new Date object w/the same value
-			var oldValue = this._get("value");
-			if(attr == "value" && oldValue instanceof Date && this.compare(value, oldValue) == 0){
-				return;
+			if(attr == "value"){
+				if(value instanceof Date && !(this.dateClassObj instanceof Date)){
+					value = new this.dateClassObj(value);
+				}
+				var oldValue = this._get("value");
+				if(oldValue instanceof this.dateClassObj && this.compare(value, oldValue) == 0){
+					return;
+				}
 			}
 			this.inherited(arguments);
 		},
@@ -224,7 +260,7 @@ define([
 				currentFocus: !this._isInvalidDate(value) ? value : this.dropDownDefaultValue,
 				constraints: textBox.constraints,
 				filterString: textBox.filterString, // for TimeTextBox, to filter times shown
-				datePackage: textBox.params.datePackage,
+				datePackage: textBox.datePackage,
 				isDisabledDate: function(/*Date*/ date){
 					// summary:
 					//		disables dates outside of the min/max of the _DateTimeTextBox

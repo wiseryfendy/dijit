@@ -109,6 +109,10 @@ define([
 		// |		_setMyClassAttr: { node: "domNode", type: "class" }
 		//		Maps this.myClass to this.domNode.className
 		//
+		//		- Toggle DOM node CSS class
+		// |		_setMyClassAttr: { node: "domNode", type: "toggleClass" }
+		//		Toggles myClass on this.domNode by this.myClass
+		//
 		//		If the value of _setXXXAttr is an array, then each element in the array matches one of the
 		//		formats of the above list.
 		//
@@ -278,6 +282,21 @@ define([
 		//		Path to a blank 1x1 image.
 		//		Used by `<img>` nodes in templates that really get their image via CSS background-image.
 		_blankGif: config.blankGif || require.toUrl("dojo/resources/blank.gif"),
+
+		// textDir: String
+		//		Bi-directional support,	the main variable which is responsible for the direction of the text.
+		//		The text direction can be different than the GUI direction by using this parameter in creation
+		//		of a widget.
+		//
+		//		This property is only effective when `has("dojo-bidi")` is defined to be true.
+		//
+		//		Allowed values:
+		//
+		//		1. "" - default value; text is same direction as widget
+		//		2. "ltr"
+		//		3. "rtl"
+		//		4. "auto" - contextual the direction of a text defined by first strong letter.
+		textDir: "",
 
 		//////////// INITIALIZATION METHODS ///////////////////////////////////////
 
@@ -758,6 +777,9 @@ define([
 					case "class":
 						domClass.replace(mapNode, value, this[attr]);
 						break;
+					case "toggleClass":
+						domClass.toggle(mapNode, command.className || attr, value);
+						break;
 				}
 			}, this);
 		},
@@ -1086,7 +1108,7 @@ define([
 			//		Return this widget's explicit or implicit orientation (true for LTR, false for RTL)
 			// tags:
 			//		protected
-			return this.dir ? (this.dir == "ltr") : domGeometry.isBodyLtr(this.ownerDocument); //Boolean
+			return this.dir ? (this.dir.toLowerCase() == "ltr") : domGeometry.isBodyLtr(this.ownerDocument); //Boolean
 		},
 
 		isFocusable: function(){

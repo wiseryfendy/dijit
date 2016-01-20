@@ -81,6 +81,9 @@ define([
 			this.labelNode[this.labelType == "html" ? "innerHTML" : "innerText" in this.labelNode ?
 				"innerText" : "textContent"] = val;
 			this._set("label", val);
+			if(has("dojo-bidi")){
+				this.applyTextDir(this.labelNode);
+			}
 		},
 
 		// labelType: [const] String
@@ -216,13 +219,13 @@ define([
 			//		Set appropriate CSS classes for this.domNode
 			// tags:
 			//		private
-			var parent = this.getParent();
-			if(!parent || !parent.rowNode || parent.rowNode.style.display == "none"){
-				/* if we are hiding the root node then make every first level child look like a root node */
-				domClass.add(this.domNode, "dijitTreeIsRoot");
-			}else{
-				domClass.toggle(this.domNode, "dijitTreeIsLast", !this.getNextSibling());
-			}
+
+			// if we are hiding the root node then make every first level child look like a root node
+			var parent = this.getParent(),
+				markAsRoot = !parent || !parent.rowNode || parent.rowNode.style.display == "none";
+			domClass.toggle(this.domNode, "dijitTreeIsRoot", markAsRoot);
+
+			domClass.toggle(this.domNode, "dijitTreeIsLast", !markAsRoot && !this.getNextSibling());
 		},
 
 		_setExpando: function(/*Boolean*/ processing){
@@ -917,6 +920,7 @@ define([
 							this.domNode.removeAttribute("aria-labelledby");
 						}
 						rn.labelNode.setAttribute("role", "presentation");
+						rn.labelNode.removeAttribute("aria-selected");
 						rn.containerNode.setAttribute("role", "tree");
 						rn.containerNode.setAttribute("aria-expanded", "true");
 						rn.containerNode.setAttribute("aria-multiselectable", !this.dndController.singular);
@@ -1037,7 +1041,7 @@ define([
 				return all(array.map(paths, function(path){
 					// normalize path to use identity
 					path = array.map(path, function(item){
-						return lang.isString(item) ? item : tree.model.getIdentity(item);
+						return item && lang.isObject(item) ? tree.model.getIdentity(item) : item;
 					});
 
 					if(path.length){

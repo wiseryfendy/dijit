@@ -14,7 +14,8 @@ define([
 	"./place",
 	"./BackgroundIframe",
 	"./Viewport",
-	"./main"    // dijit (defining dijit.popup to match API doc)
+	"./main",    // dijit (defining dijit.popup to match API doc)
+	"dojo/touch"		// use of dojoClick
 ], function(array, aspect, declare, dom, domAttr, domConstruct, domGeometry, domStyle, has, keys, lang, on,
 			place, BackgroundIframe, Viewport, dijit){
 
@@ -112,11 +113,11 @@ define([
 					this._firstAroundPosition = newPos;
 					for(var i = 0; i < this._stack.length; i++){
 						var style = this._stack[i].wrapper.style;
-						style.top = (parseInt(style.top, 10) + dy) + "px";
+						style.top = (parseFloat(style.top) + dy) + "px";
 						if(style.right == "auto"){
-							style.left = (parseInt(style.left, 10) + dx) + "px";
+							style.left = (parseFloat(style.left) + dx) + "px";
 						}else{
-							style.right = (parseInt(style.right, 10) - dx) + "px";
+							style.right = (parseFloat(style.right) - dx) + "px";
 						}
 					}
 				}
@@ -157,13 +158,19 @@ define([
 
 				// Workaround iOS problem where clicking a Menu can focus an <input> (or click a button) behind it.
 				// Need to be careful though that you can still focus <input>'s and click <button>'s in a TooltipDialog.
-				if("ontouchstart" in document) {
-					on(wrapper, "touchstart", function (evt){
+				// Also, be careful not to break (native) scrolling of dropdown like ComboBox's options list.
+				if("ontouchend" in document) {
+					on(wrapper, "touchend", function (evt){
 						if(!/^(input|button|textarea)$/i.test(evt.target.tagName)) {
 							evt.preventDefault();
 						}
 					});
 				}
+
+				// Calling evt.preventDefault() suppresses the native click event on most browsers.  However, it doesn't
+				// suppress the synthetic click event emitted by dojo/touch.  In order for clicks in popups to work
+				// consistently, always use dojo/touch in popups.  See #18150.
+				wrapper.dojoClick = true;
 			}
 
 			return wrapper;
@@ -208,9 +215,9 @@ define([
 
 			domStyle.set(wrapper, {
 				display: "none",
-				height: "auto",		// Open may have limited the height to fit in the viewport
-				overflow: "visible",
-				border: ""			// Open() may have moved border from popup to wrapper.
+				height: "auto",			// Open() may have limited the height to fit in the viewport,
+				overflowY: "visible",	// and set overflowY to "auto".
+				border: ""				// Open() may have moved border from popup to wrapper.
 			});
 
 			// Open() may have moved border from popup to wrapper.  Move it back.

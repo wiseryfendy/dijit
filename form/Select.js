@@ -318,7 +318,7 @@ define([
 			var lbl = (this.labelType === 'text' ? (newDisplay || '')
 					.replace(/&/g, '&amp;').replace(/</g, '&lt;') :
 					newDisplay) || this.emptyLabel;
-			this.containerNode.innerHTML = '<span role="option" class="dijitReset dijitInline ' + this.baseClass.replace(/\s+|$/g, "Label ") + '">' + lbl + '</span>';
+			this.containerNode.innerHTML = '<span role="option" aria-selected="true" class="dijitReset dijitInline ' + this.baseClass.replace(/\s+|$/g, "Label ") + '">' + lbl + '</span>';
 		},
 
 		validate: function(/*Boolean*/ isFocused){
@@ -374,30 +374,6 @@ define([
 			}));
 
 			this.domNode.setAttribute("aria-expanded", "false");
-
-			if(has("ie") < 9){
-				// IE INPUT tag fontFamily has to be set directly using STYLE
-				// the defer gives IE a chance to render the TextBox and to deal with font inheritance
-				this.defer(function(){
-					try{
-						var s = domStyle.getComputedStyle(this.domNode); // can throw an exception if widget is immediately destroyed
-						if(s){
-							var ff = s.fontFamily;
-							if(ff){
-								var inputs = this.domNode.getElementsByTagName("INPUT");
-								if(inputs){
-									for(var i = 0; i < inputs.length; i++){
-										inputs[i].style.fontFamily = ff;
-									}
-								}
-							}
-						}
-					}catch(e){
-						// when used in a Dialog, and this is called before the dialog is
-						// shown, s.fontFamily would trigger "Invalid Argument" error.
-					}
-				});
-			}
 
 			// Prevent _KeyNavMixin from calling stopPropagation() on left and right arrow keys, thus breaking
 			// navigation when Select inside Toolbar.

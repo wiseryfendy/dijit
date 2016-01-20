@@ -45,8 +45,19 @@
 								doh.t(popup && isVisible(popup), "popup visible");
 							}), 500);
 
-							// advance from 5:45PM to 6PM, and select
+							// advance from 5:45PM to 6PM
 							doh.robot.keyPress(dojo.keys.DOWN_ARROW, 1000, {});
+							doh.robot.sequence(d.getTestErrback(function(){
+								var popup = dijit.byId('q1_popup');
+								doh.t(popup && isVisible(popup), "popup still visible");
+
+								// for screenreader (and to be like ComboBox), navigated value should be in <input>
+								var val = dojo.date.stamp.toISOString(w.get('value'), {selector: "time"});
+								doh.is("T18:00:00", val, "6PM was selected");
+
+								doh.is(null, dojo.global.formValue, "no form submit");
+							}), 500);
+
 							doh.robot.keyPress(dojo.keys.ENTER, 500, {});
 
 							doh.robot.sequence(d.getTestErrback(function(){
@@ -207,15 +218,27 @@
 								doh.is("12:45 PM", innerText(children[7]));
 							}), 1000);
 
-							// Setup handler to fire when TAB keypress below fires
-							doh.robot.sequence(function(){
+							doh.robot.keyPress(dojo.keys.DOWN_ARROW, 500, {});
+							doh.robot.keyPress(dojo.keys.DOWN_ARROW, 500, {});
+
+							doh.robot.sequence(d.getTestErrback(function(){
+								// dropdown list should still be filtered
+								var popup = dijit.byId('q2_popup');
+								var children = dojo.query(".dijitTimePickerItem", popup.domNode);
+								doh.is(8, children.length, "# of items in drop down after down arrow keys");
+
+								// for screenreader (and to be like ComboBox), navigated value should be in <input>
+								var val = dojo.date.stamp.toISOString(w.get('value'), {selector: "time"});
+								doh.is("T00:15:00", val, "12:15 was selected");
+
+								// Setup handler to fire when TAB keypress below fires
 								onFocus(d.getTestCallback(function(){
 									var popup = dijit.byId('q2_popup');
 									doh.t(!popup || isHidden(popup), "popup hidden again");
 
 									doh.is("q3", dojo.global.dijit.focus.curNode.id, "tab moved to next input widget");
 								}));
-							}, 0);
+							}), 1000);
 
 							// tab away to close drop down
 							doh.robot.keyPress(dojo.keys.TAB, 500, {});
@@ -427,6 +450,59 @@
 						}
 					}
 				]);
+
+				var q21;
+				doh.register("Regression tests for 18201", [
+					{
+						name: "set Date value",
+						timeout: 1000,
+						runTest: function(){
+							var q21 = dijit.byId("q21"),
+								testDate = new Date();
+
+							q21.set('value', testDate);
+							var value = q21.get('value');
+							doh.assertTrue(value != null, "Unable to set Date value");
+						}
+					},
+					{
+						name: "compare Date value",
+						timeout: 1000,
+						runTest: function(){
+							var q21 = dijit.byId("q21"),
+								testDate = new Date();
+
+							q21.set('value', testDate);
+							var widgetDate = q21.get('value');
+							doh.assertEqual(0, q21.compare(testDate, widgetDate), "Invalid date comparison")
+						}
+					}
+				]);
+
+				doh.register("limited drop down range", {
+					name: "9 to 5",
+					timeout: 10000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						w = dijit.byId('q22');
+
+						// open drop down
+						w.focus();
+						doh.robot.keyPress(dojo.keys.DOWN_ARROW, 1000, {});
+						doh.robot.sequence(d.getTestCallback(function(){
+							var popup = dijit.byId('q22_popup');
+							doh.t(isVisible(popup), "popup visible");
+							doh.is(9, popup.containerNode.children.length, "# of entries in drop down")
+						}), 500);
+
+						return d;
+					},
+					tearDown: function(){
+						// Even if test failed, make sure drop down is closed so it doesn't interfere w/next test
+						w.closeDropDown();
+					}
+				});
 
 				doh.run();
 			});

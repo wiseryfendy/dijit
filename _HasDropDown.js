@@ -114,7 +114,7 @@ define([
 				e.preventDefault();
 			}
 
-			this._docHandler = this.own(on(this.ownerDocument, touch.release, lang.hitch(this, "_onDropDownMouseUp")))[0];
+			this.own(on.once(this.ownerDocument, touch.release, lang.hitch(this, "_onDropDownMouseUp")));
 
 			this.toggleDropDown();
 		},
@@ -136,10 +136,6 @@ define([
 			//		2. move mouse to a menu item while holding down the mouse button
 			//		3. mouse up.  this selects the menu item as though the user had clicked it.
 
-			if(e && this._docHandler){
-				this._docHandler.remove();
-				this._docHandler = null;
-			}
 			var dropDown = this.dropDown, overMenu = false;
 
 			if(e && this._opened){
@@ -416,6 +412,7 @@ define([
 				var resizeArgs = {
 					w: dropDown.domNode.offsetWidth + widthAdjust
 				};
+				this._origStyle = ddNode.style.cssText;
 				if(lang.isFunction(dropDown.resize)){
 					dropDown.resize(resizeArgs);
 				}else{
@@ -465,7 +462,11 @@ define([
 				popup.close(this.dropDown);
 				this._opened = false;
 			}
-		}
 
+			if(this._origStyle){
+				this.dropDown.domNode.style.cssText = this._origStyle;
+				delete this._origStyle;
+			}
+		}
 	});
 });

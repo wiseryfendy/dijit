@@ -73,6 +73,12 @@ define([
 		//		Order fields are traversed when user hits the tab key
 		tabIndex: "0",
 
+		// dayOffset: Integer
+		//		(Optional) The first day of week override. By default the first day of week is determined
+		//		for the current locale (extracted from the CLDR).
+		//		Special value -1 (default value), means use locale dependent value.
+		dayOffset: -1,
+
 		// currentFocus: Date
 		//		Date object containing the currently focused date, or the date which would be focused
 		//		if the calendar itself was focused.   Also indicates which year and month to display,
@@ -188,7 +194,7 @@ define([
 				daysInMonth = this.dateModule.getDaysInMonth(month),
 				daysInPreviousMonth = this.dateModule.getDaysInMonth(this.dateModule.add(month, "month", -1)),
 				today = new this.dateClassObj(),
-				dayOffset = cldrSupplemental.getFirstDayOfWeek(this.lang);
+				dayOffset = this.dayOffset >= 0 ? this.dayOffset : cldrSupplemental.getFirstDayOfWeek(this.lang);
 			if(dayOffset > firstDay){
 				dayOffset -= 7;
 			}
@@ -248,8 +254,6 @@ define([
 
 				// Each cell has an associated integer value representing it's date
 				var dateVal = date.valueOf();
-				if(idx==0)
-					console.log("setting date2cell[" + dateVal + "]");
 				this._date2cell[dateVal] = template;
 				template.dijitDateValue = dateVal;
 
@@ -315,7 +319,7 @@ define([
 			// Markup for days of the week (referenced from template)
 			var d = this.dowTemplateString,
 				dayNames = this.dateLocaleModule.getNames('days', this.dayWidth, 'standAlone', this.lang),
-				dayOffset = cldrSupplemental.getFirstDayOfWeek(this.lang);
+				dayOffset = this.dayOffset >= 0 ? this.dayOffset : cldrSupplemental.getFirstDayOfWeek(this.lang);
 			this.dayCellsHtml = string.substitute([d, d, d, d, d, d, d].join(""), {d: ""}, function(){
 				return dayNames[dayOffset++ % 7];
 			});
@@ -351,6 +355,7 @@ define([
 			//		protected
 
 			var connect = lang.hitch(this, function(nodeProp, part, amount){
+				this[nodeProp].dojoClick = true;
 				return on(this[nodeProp], "click", lang.hitch(this, function(){
 					this._setCurrentFocusAttr(this.dateModule.add(this.currentFocus, part, amount));
 				}));

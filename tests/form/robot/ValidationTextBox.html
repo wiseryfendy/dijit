@@ -493,11 +493,22 @@
 						runTest: function(){
 							var d = new doh.Deferred();
 							doh.robot.typeKeys('123', 1000, 600);
-							doh.robot.sequence(d.getTestCallback(dojo.hitch(this, function(){
+							doh.robot.sequence(d.getTestErrback(dojo.hitch(this, function(){
 								doh.is('123', this.textbox.focusNode.value, "focusNode.value");
-								doh.is(undefined, this.textbox.get('value'), "get('value')");
+								doh.is(123, this.textbox.get('value'), "get('value')");
 								doh.f(this.textbox.isValid(), "!isValid()");
 							})), 1000);
+							var textbox = this.textbox;
+							var handler = textbox.connect(textbox, '_onBlur',
+								function(){
+									textbox.disconnect(handler);
+									setTimeout(d.getTestCallback(function(){
+										doh.is('$123.00', textbox.focusNode.value, "focusNode.value");
+										doh.is(123, textbox.get('value'), "get('value')");
+										doh.t(textbox.isValid(), "isValid()");
+									}), 150);
+								});
+							doh.robot.keyPress(dojo.keys.TAB, 1500, {});
 							return d;
 						}
 					},
@@ -513,11 +524,22 @@
 						runTest: function(){
 							var d = new doh.Deferred();
 							doh.robot.typeKeys('123.0', 1000, 1000);
-							doh.robot.sequence(d.getTestCallback(dojo.hitch(this, function(){
+							doh.robot.sequence(d.getTestErrback(dojo.hitch(this, function(){
 								doh.is('123.0', this.textbox.focusNode.value, "focusNode.value");
-								doh.is(undefined, this.textbox.get('value'), "get('value')");
+								doh.is(123, this.textbox.get('value'), "get('value')");
 								doh.f(this.textbox.isValid(), "!isValid()");
 							})), 1000);
+							var textbox = this.textbox;
+							var handler = textbox.connect(textbox, '_onBlur',
+								function(){
+									textbox.disconnect(handler);
+									setTimeout(d.getTestCallback(function(){
+										doh.is('$123.00', textbox.focusNode.value, "focusNode.value");
+										doh.is(123, textbox.get('value'), "get('value')");
+										doh.t(textbox.isValid(), "isValid()");
+									}), 150);
+								});
+							doh.robot.keyPress(dojo.keys.TAB, 1500, {});
 							return d;
 						}
 					},
@@ -1128,6 +1150,7 @@
 								doh.t(masterTT && isVisible(masterTT.domNode), "visible");
 								doh.is("(optional) Enter an age between 0 and 120", dojo.trim(innerText(masterTT.domNode)));
 							}), 750);
+							return d;
 						}
 					},
 					{
@@ -1192,6 +1215,287 @@
 					}
 				]);
 
+				doh.register("Ensure value formatting doesn't change entered values", [
+					{
+						name: "Ensure leading 0s don't cause a value change on blur",
+						timeout: 1000,
+						setUp: function(){
+							var textWidget = dijit.byId("ticket17955");
+							textWidget.set('maxLength', 8);
+							textWidget.set('constraints', {pattern: "000.#"});
+						},
+						runTest: function(){
+							var textWidget = dijit.byId("ticket17955");
+							textWidget.textbox.focus();
+							textWidget.textbox.value = "02103.5";
+							textWidget.textbox.blur();
+							doh.is(2103.5, textWidget.get("value"), "textbox.get('value')");
+						}
+					},
+					{
+						name: "Ensure extra digits do not cause a value change on blur",
+						timeout: 1000,
+						setUp: function(){
+							var textWidget = dijit.byId("ticket17955");
+							textWidget.set('maxLength', 8);
+							textWidget.set('constraints', {pattern: "000.#"});
+						},
+						runTest: function(){
+							var textWidget = dijit.byId("ticket17955");
+							textWidget.textbox.focus();
+							textWidget.textbox.value = "5123123";
+							textWidget.textbox.blur();
+							doh.is(5123123, textWidget.get("value"), "textbox.get('value')");
+						}
+					},
+					{
+						name: "Verify patterns without a decimal work as expected",
+						timeout: 1000,
+						setUp: function(){
+							var textWidget = dijit.byId("ticket17955");
+							textWidget.set('maxLength', null);
+							textWidget.set('constraints', {pattern: "#"});
+						},
+						runTest: function(){
+							var textWidget = dijit.byId("ticket17955");
+							textWidget.textbox.focus();
+							textWidget.textbox.value = "80000";
+							textWidget.textbox.blur();
+							doh.is(80000, textWidget.get("value"), "textbox.get('value')");
+						}
+					}
+				]);
+
+				doh.register("Leading 0 parsing for NumberTextBox", [
+				{
+					name: "valid with 2 leading zeros",
+					timeout: 2000,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+							textbox.set('value', '');
+							textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {min: 1}));
+							textbox.set('maxLength', 3);
+						// When this is run at the end of the tests in IE 9, the incomplete
+						// state is not properly triggered. Focus and blur to fix.
+						textbox.focusNode.focus();
+						textbox.focusNode.blur();
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+							textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('00', 500, 500);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Incomplete", textbox.get('state'), "textbox.get('state')");
+						}), 500);
+						return d;
+					}
+				},
+				{
+					name: "invalid with 3 leading zeros",
+					timeout: 2000,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+						textbox.set('value', '');
+						textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {min: 1}));
+						textbox.set('maxLength', 3);
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+						textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('000', 500, 500);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Error", textbox.get('state'), "textbox.get('state')");
+						}), 500);
+						return d;
+					}
+				},
+				{
+					name: "invalid with 2 leading zeros",
+					timeout: 2000,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+						textbox.set('value', '');
+						textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {min: 100}));
+						textbox.set('maxLength', 4);
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+							textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('00', 500, 500);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Error", textbox.get('state'), "textbox.get('state')");
+						}), 500);
+						return d;
+					}
+				},
+				{
+					name: "valid with 5 leading zeros",
+					timeout: 2000,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+						textbox.set('value', '');
+						textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {min: 10}));
+						textbox.set('maxLength', 7);
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+							textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('00000', 500, 500);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Incomplete", textbox.get('state'), "textbox.get('state')");
+						}), 500);
+						return d;
+					}
+				},
+				{
+					name: "invalid with 0.1 leading zeros",
+					timeout: 2000,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+						textbox.set('value', '');
+						textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {min: 10}));
+						textbox.set('maxLength', 7);
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+							textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('0.1', 500, 500);
+						doh.robot.sequence(d.getTestCallback(function(){
+						  doh.is("Error", textbox.get('state'), "textbox.get('state')");
+						}), 500);
+						return d;
+					}
+				},
+				{
+					name: "invalid with -9.01",
+					timeout: 2000,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+						textbox.set('value', '');
+						textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {max: -9.02}));
+						textbox.set('maxLength', 7);
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+							textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('-9.01', 500, 500);
+						doh.robot.sequence(d.getTestCallback(function(){
+						  doh.is("Error", textbox.get('state'), "textbox.get('state')");
+						}), 500);
+						return d;
+					}
+				},
+				{
+					name: "valid with -9.021",
+					timeout: 2000,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+						textbox.set('value', '');
+						textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {min: -9.03, max: -9.02}));
+						textbox.set('maxLength', 7);
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+							textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('-9.021', 500, 500);
+						doh.robot.sequence(d.getTestCallback(function(){
+						  doh.is("", textbox.get('state'), "textbox.get('state')");
+						}),500);
+						return d;
+					}
+				},
+				{
+					name: "checking each keypress for -9.01: 1 of 5",
+					timeout: 500,
+					setUp: function(){
+						var textbox = dijit.byId("ticket17923");
+						textbox.set('value', '');
+						textbox.set('constraints', dojo.mixin({}, textbox.get('constraints'), {min: -9.03, max: -9.02}));
+						textbox.set('maxLength', 7);
+					},
+					runTest: function(){
+						var d = new doh.Deferred(),
+							textbox = dijit.byId("ticket17923");
+						textbox.focusNode.scrollIntoView();
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('-', 50, 100);
+						doh.robot.sequence(d.getTestCallback(function(){
+						  doh.is("Incomplete", textbox.get('state'), "textbox.get('state')");
+						}));
+						return d;
+					}
+				},
+				{
+					name: "checking each keypress for -9.01: 2 of 5",
+					timeout: 500,
+					runTest: function(){
+						var d = new doh.Deferred(),
+						textbox = dijit.byId("ticket17923");
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('9', 50, 100);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Incomplete", textbox.get('state'), "textbox.get('state')");
+						}));
+						return d;
+					}
+				},
+				{
+					name: "checking each keypress for -9.01: 3 of 5",
+					timeout: 500,
+					runTest: function(){
+						var d = new doh.Deferred(),
+						textbox = dijit.byId("ticket17923");
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('.', 50, 100);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Incomplete", textbox.get('state'), "textbox.get('state')");
+						}));
+						return d;
+					}
+				},
+				{
+					name: "checking each keypress for -9.01: 4 of 5",
+					timeout: 500,
+					runTest: function(){
+						var d = new doh.Deferred(),
+						textbox = dijit.byId("ticket17923");
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('0', 50, 100);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Incomplete", textbox.get('state'), "textbox.get('state')");
+						}));
+						return d;
+					}
+				},
+				{
+					name: "checking each keypress for -9.01: 5 of 5",
+					timeout: 500,
+					runTest: function(){
+						var d = new doh.Deferred(),
+						textbox = dijit.byId("ticket17923");
+						textbox.focusNode.focus();
+						doh.robot.typeKeys('1', 50, 100);
+						doh.robot.sequence(d.getTestCallback(function(){
+							doh.is("Error", textbox.get('state'), "textbox.get('state')");
+						}));
+						return d;
+					}
+				}]);
+
 				// This should be the last test since it destroys a ValidationTextBox
 				doh.register("tooltip hide on destroy", [
 					{
@@ -1208,6 +1512,7 @@
 								masterTT = dojo.global.dijit._masterTT;
 								doh.t(masterTT && isVisible(masterTT.domNode), "visible");
 							}), 750);
+							return d;
 						}
 					},
 					{
@@ -1226,6 +1531,53 @@
 					}
 				]);
 
+				doh.register("Ensure rounding works with locale's whose decimal separator is not a period", [
+					{
+						name: "basic rounding test",
+						runTest: function(){
+							// Expects the textbox to have a constraint of up to 1 decimal place, and the lang of 'de-de',
+							// which uses a comma instead of a period as the decimal separator.
+							var textbox = dijit.byId("ticket18260");
+							textbox.set('value', 12.9);
+							doh.is(12.9, textbox.get('value'), 'textbox.value == 12.9');
+							textbox.set('value', 12.99);
+							doh.is(13.0, textbox.get('value'), 'textbox.value == 13.0');
+						}
+					}
+				]);
+
+				doh.register("Ensure using both forms of the places constraint work as expected", [
+					{
+						name: "Fixed numeric places test, 2",
+						runTest: function(){
+							var textbox = dijit.byId("ticket18367");
+							textbox.set('constraints', {places:2});
+							textbox.set('value', 12.991);
+							doh.is(12.99, textbox.get('value'), 'textbox.value == 12.99');
+						}
+					},
+					{
+						name: "Range places test 0,4",
+						runTest: function(){
+							var textbox = dijit.byId("ticket18367");
+							textbox.set('constraints', {places: "0,4"});
+							textbox.set('value', 12);
+							doh.is(12, textbox.get('value'), 'textbox.value == 12');
+							textbox.set('value', 12.9);
+							doh.is(12.9, textbox.get('value'), 'textbox.value == 12.9');
+							textbox.set('value', 12.99);
+							doh.is(12.99, textbox.get('value'), 'textbox.value == 12.99');
+							textbox.set('value', 12.991);
+							doh.is(12.991, textbox.get('value'), 'textbox.value == 12.991');
+							textbox.set('value', 12.9912);
+							doh.is(12.9912, textbox.get('value'), 'textbox.value == 12.9912');
+							textbox.set('value', 12.99123);
+							doh.is(12.9912, textbox.get('value'), 'textbox.value == 12.9912');
+							textbox.set('value', 12.1);
+							doh.is(12.1, textbox.get('value'), 'textbox.value == 12.1');
+						}
+					}
+				]);
 				doh.run();
 			});
 		</script>
